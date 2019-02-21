@@ -4,17 +4,24 @@
 
 MPU9250 is one of the most popular IMU (Inertial Measurement Unit) available on the market. It combines not only 3D accelerometer, 3D gyro and 3D compass but also DMP (Digital Motion Processor). Thanks to DMP we can read orientation data in the form of Euler angles or quaternions directly from the chip.
 
-A web page with a 3D cube visualizing orientation of MPU9250 is hosted by ESP32. Real time data from MPU9250 is sent to a web browser through a websocket. That data is then used by Three.js library (https://threejs.org/) visualize orientation of the cube in a real time. The web page is available both in LAN and through the internet thanks to Husarnet (https://husarnet.com/).
+A web page with a 3D cube visualizing orientation of MPU9250 is hosted by ESP32. Real time data from MPU9250 is sent to a web browser through a websocket. That data is then used by Three.js library (https://threejs.org/) to visualize orientation of the cube in a real time. The web page is available both in LAN and through the internet thanks to Husarnet (https://husarnet.com/).
+
+To run the example, follow the next steps.
 
 # Connect MPU9250 to ESP32
 
+Interface between ESP32 and MPU9250 is as follows:
 ```
 ESP32 <-> MPU9250
 
 P22   <-> SCL
 P21   <-> SDA
 P19   <-> INT
+
+GND   <-> GND
 ```
+
+Remember also to provide appropriate power supply both for ESP32 and MPU9250.
 
 # Configure Arduino IDE
 
