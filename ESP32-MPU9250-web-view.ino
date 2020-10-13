@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WebSocketsServer.h>
 #include <Husarnet.h>
 #include <ArduinoJson.h>
@@ -7,6 +8,10 @@
 /* =============== config section start =============== */
 
 #define INTERRUPT_PIN 19
+
+#if __has_include("credentials.h")
+#include "credentials.h"
+#else
 
 // WiFi credentials
 #define NUM_NETWORKS 2
@@ -31,6 +36,9 @@ const char* hostName = "box3desp32";  //this will be the name of the 1st ESP32 d
    Keep it secret!
 */
 const char* husarnetJoinCode = "xxxxxxxxxxxxxxxxxxxxxx";
+const char* dashboardURL = "default";
+#endif
+
 
 /* =============== config section end =============== */
 
@@ -40,8 +48,10 @@ const char* husarnetJoinCode = "xxxxxxxxxxxxxxxxxxxxxx";
 WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
 HusarnetServer server(HTTP_PORT);
 
-StaticJsonBuffer<200> jsonBufferTx;
-JsonObject& rootTx = jsonBufferTx.createObject();
+// you can provide credentials to multiple WiFi networks
+WiFiMulti wifiMulti;
+
+StaticJsonDocument<200> jsonDocTx;
 
 const char* html =
 #include "html.h"
@@ -147,52 +157,53 @@ void setup()
     "taskStatus",        /* String with name of task. */
     20000,            /* Stack size in bytes. */
     NULL,             /* Parameter passed as input of the task */
-    2,                /* Priority of the task. */
+    3,                /* Priority of the task. */
     NULL,             /* Task handle. */
-    1);               /* Core where the task should run */
+    0);               /* Core where the task should run */
 }
 
 void taskWifi( void * parameter ) {
-  bool initialSetup = 0;
+  uint8_t stat = WL_DISCONNECTED;
+
+  /* Configure Wi-Fi */
+  for (int i = 0; i < NUM_NETWORKS; i++) {
+    wifiMulti.addAP(ssidTab[i], passwordTab[i]);
+    Serial.printf("WiFi %d: SSID: \"%s\" ; PASS: \"%s\"\r\n", i, ssidTab[i], passwordTab[i]);
+  }
+
+  while (stat != WL_CONNECTED) {
+    stat = wifiMulti.run();
+    Serial.printf("WiFi status: %d\r\n", (int)stat);
+    delay(100);
+  }
+
+  Serial.printf("WiFi connected\r\n", (int)stat);
+  Serial.printf("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  /* Start Husarnet */
+  Husarnet.selfHostedSetup(dashboardURL);
+  Husarnet.join(husarnetJoinCode, hostName);
+  Husarnet.start();
+
+  webSocket.begin();
+  webSocket.onEvent(onWebSocketEvent);
+
+  server.begin();
+
   while (1) {
-    for (int i = 0; i < NUM_NETWORKS; i++) {
-      delay(500);
-      Serial.println();
-      Serial.print("Connecting to ");
-      Serial.print(ssidTab[i]);
-      WiFi.begin(ssidTab[i], passwordTab[i]);
-      for (int j = 0; j < 10; j++) {
-        if (WiFi.status() != WL_CONNECTED) {
-          delay(500);
-          Serial.print(".");
-        } else {
-          if (initialSetup == 0) {
-            server.begin();
+    while (WiFi.status() == WL_CONNECTED) {
+      xSemaphoreTake(sem, 5);
 
-            Husarnet.join(husarnetJoinCode, hostName);
-            Husarnet.start();
-
-            webSocket.begin();
-            webSocket.onEvent(onWebSocketEvent);
-
-            initialSetup = 1;
-          }
-
-          Serial.println("done");
-          Serial.print("IP address: ");
-          Serial.println(WiFi.localIP());
-
-          while (WiFi.status() == WL_CONNECTED) {
-            xSemaphoreTake(sem, 5);
-
-            if (xSemaphoreTake(mtx, 5) == pdTRUE) {
-              webSocket.loop();
-              xSemaphoreGive( mtx );
-            }
-          }
-        }
+      if (xSemaphoreTake(mtx, 5) == pdTRUE) {
+        webSocket.loop();
+        xSemaphoreGive( mtx );
       }
     }
+    Serial.printf("WiFi disconnected, reconnecting\r\n");
+    delay(500);
+    stat = wifiMulti.run();
+    Serial.printf("WiFi status: %d\r\n", (int)stat);
   }
 }
 
@@ -204,7 +215,7 @@ void taskHTTP( void * parameter )
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
     }
-    delay(10);
+    delay(100);
 
     HusarnetClient client = server.available();
 
@@ -253,19 +264,13 @@ void taskStatus( void * parameter )
   unsigned short fifoCnt;
   inv_error_t result;
 
-  portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-
   while (1) {
     if ( digitalRead(INTERRUPT_PIN) == LOW ) {
 
-      taskENTER_CRITICAL(&myMutex);
       fifoCnt = imu.fifoAvailable();
-      taskEXIT_CRITICAL(&myMutex);
 
       if ( fifoCnt > 0) {
-        taskENTER_CRITICAL(&myMutex);
         result = imu.dmpUpdateFifo();
-        taskEXIT_CRITICAL(&myMutex);
 
         if ( result == INV_SUCCESS) {
           imu.computeEulerAngles();
@@ -279,14 +284,16 @@ void taskStatus( void * parameter )
           //rootTx["roll"] = imu.roll;
           //rootTx["pitch"] = imu.pitch;
           //rootTx["yaw"] = imu.yaw;
-          rootTx["q0"] = q0;
-          rootTx["q1"] = q1;
-          rootTx["q2"] = q2;
-          rootTx["q3"] = q3;
-          rootTx.printTo(output);
 
-          //Serial.print(F("Sending: "));
-          //Serial.println(output);
+          jsonDocTx.clear();
+          jsonDocTx["q0"] = q0;
+          jsonDocTx["q1"] = q1;
+          jsonDocTx["q2"] = q2;
+          jsonDocTx["q3"] = q3;
+          serializeJson(jsonDocTx, output);
+
+          Serial.print(F("Sending: "));
+          Serial.println(output);
 
           if (wsconnected == true) {
             if (xSemaphoreTake(mtx, 0) == pdTRUE) {
