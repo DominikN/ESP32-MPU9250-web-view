@@ -103,38 +103,22 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
 
 }
 
+void onHttpReqFunc() {
+  server.sendHeader("Connection", "close");
+  server.send(200, "text/html", html);
+}
+
 void taskWifi( void * parameter );
 void taskStatus( void * parameter );
 
-SemaphoreHandle_t sem;
 SemaphoreHandle_t mtx;
 
 const signed char orientationDefault[9] = { 0, 1, 0, 0, 0, 1, 1, 0, 0 };
 
 void setup()
 {
-  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
   Serial.begin(115200);
 
-  if (imu.begin() != INV_SUCCESS) {
-    while (1) {
-      Serial.println("Unable to communicate with MPU-9250");
-      Serial.println("Check connections, and try again.");
-      Serial.println();
-      delay(5000);
-    }
-  }
-
-  imu.enableInterrupt();
-  imu.setIntLevel(INT_ACTIVE_LOW);
-  imu.setIntLatched(INT_LATCHED);
-
-  imu.dmpBegin(DMP_FEATURE_6X_LP_QUAT | // Enable 6-axis quat
-               DMP_FEATURE_GYRO_CAL, // Use gyro calibration
-               10); // Set DMP FIFO rate to 10 Hz
-  imu.dmpSetOrientation(orientationDefault);
-
-  sem = xSemaphoreCreateCounting( 10, 0 );
   mtx = xSemaphoreCreateMutex();
   xSemaphoreGive( mtx );
 
@@ -185,25 +169,18 @@ void taskWifi( void * parameter ) {
   webSocket.onEvent(onWebSocketEvent);
 
   /* Confgiure HTTP server */
-  server.on("/index.html", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", html);
-  });
-  server.on("/", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", html);
-  });
-
+  server.on("/", HTTP_GET, onHttpReqFunc);
+  server.on("/index.html", HTTP_GET, onHttpReqFunc);
   server.begin();
 
   while (1) {
     while (WiFi.status() == WL_CONNECTED) {
-      xSemaphoreTake(sem, 5);
       if (xSemaphoreTake(mtx, 5) == pdTRUE) {
         webSocket.loop();
+        server.handleClient();
         xSemaphoreGive( mtx );
       }
-      server.handleClient();
+      delay(10);
     }
     Serial.printf("WiFi disconnected, reconnecting\r\n");
     delay(500);
@@ -218,6 +195,26 @@ void taskStatus( void * parameter )
   String output;
   unsigned short fifoCnt;
   inv_error_t result;
+
+  pinMode(INTERRUPT_PIN, INPUT_PULLUP);
+
+  if (imu.begin() != INV_SUCCESS) {
+    while (1) {
+      Serial.println("Unable to communicate with MPU-9250");
+      Serial.println("Check connections, and try again.");
+      Serial.println();
+      delay(5000);
+    }
+  }
+
+  imu.enableInterrupt();
+  imu.setIntLevel(INT_ACTIVE_LOW);
+  imu.setIntLatched(INT_LATCHED);
+
+  imu.dmpBegin(DMP_FEATURE_6X_LP_QUAT | // Enable 6-axis quat
+               DMP_FEATURE_GYRO_CAL, // Use gyro calibration
+               10); // Set DMP FIFO rate to 10 Hz
+  imu.dmpSetOrientation(orientationDefault);
 
   while (1) {
     if ( digitalRead(INTERRUPT_PIN) == LOW ) {
@@ -247,13 +244,12 @@ void taskStatus( void * parameter )
           jsonDocTx["q3"] = q3;
           serializeJson(jsonDocTx, output);
 
-          Serial.print(F("Sending: "));
-          Serial.println(output);
+//          Serial.print(F("Sending: "));
+//          Serial.println(output);
 
           if (wsconnected == true) {
             if (xSemaphoreTake(mtx, 0) == pdTRUE) {
               webSocket.sendTXT(0, output);
-              xSemaphoreGive( sem );
               xSemaphoreGive( mtx );
             }
           }
@@ -272,6 +268,7 @@ void loop()
 {
   Serial.printf("loop() running on core %d\r\n", xPortGetCoreID());
   while (1) {
-    delay(5000);
+    Serial.printf("[RAM: %d]\r\n", esp_get_free_heap_size());
+    delay(1000);
   }
 }
