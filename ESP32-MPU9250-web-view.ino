@@ -180,7 +180,7 @@ void taskWifi( void * parameter ) {
         server.handleClient();
         xSemaphoreGive( mtx );
       }
-      delay(10);
+      delay(5);
     }
     Serial.printf("WiFi disconnected, reconnecting\r\n");
     delay(500);
@@ -248,7 +248,7 @@ void taskStatus( void * parameter )
 //          Serial.println(output);
 
           if (wsconnected == true) {
-            if (xSemaphoreTake(mtx, 0) == pdTRUE) {
+            if (xSemaphoreTake(mtx, 5) == pdTRUE) {
               webSocket.sendTXT(0, output);
               xSemaphoreGive( mtx );
             }
