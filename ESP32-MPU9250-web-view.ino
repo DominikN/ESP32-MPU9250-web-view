@@ -3,6 +3,7 @@
 #include <WebSocketsServer.h>
 #include <Husarnet.h>
 #include <ArduinoJson.h>
+#include <WebServer.h>
 #include <SparkFunMPU9250-DMP.h>
 
 /* =============== config section start =============== */
@@ -45,11 +46,15 @@ const char* dashboardURL = "default";
 #define HTTP_PORT 8000
 #define WEBSOCKET_PORT 8001
 
-WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
-HusarnetServer server(HTTP_PORT);
-
 // you can provide credentials to multiple WiFi networks
 WiFiMulti wifiMulti;
+
+// HTTP server on port 8000
+WebServer server(HTTP_PORT);
+
+// WebSocket server
+WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
+
 
 StaticJsonDocument<200> jsonDocTx;
 
@@ -99,7 +104,6 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
 }
 
 void taskWifi( void * parameter );
-void taskHTTP( void * parameter );
 void taskStatus( void * parameter );
 
 SemaphoreHandle_t sem;
@@ -144,15 +148,6 @@ void setup()
     0);               /* Core where the task should run */
 
   xTaskCreatePinnedToCore(
-    taskHTTP,          /* Task function. */
-    "taskHTTP",        /* String with name of task. */
-    20000,            /* Stack size in bytes. */
-    NULL,             /* Parameter passed as input of the task */
-    2,                /* Priority of the task. */
-    NULL,             /* Task handle. */
-    0);               /* Core where the task should run */
-
-  xTaskCreatePinnedToCore(
     taskStatus,          /* Task function. */
     "taskStatus",        /* String with name of task. */
     20000,            /* Stack size in bytes. */
@@ -189,16 +184,26 @@ void taskWifi( void * parameter ) {
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
 
+  /* Confgiure HTTP server */
+  server.on("/index.html", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", html);
+  });
+  server.on("/", HTTP_GET, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/html", html);
+  });
+
   server.begin();
 
   while (1) {
     while (WiFi.status() == WL_CONNECTED) {
       xSemaphoreTake(sem, 5);
-
       if (xSemaphoreTake(mtx, 5) == pdTRUE) {
         webSocket.loop();
         xSemaphoreGive( mtx );
       }
+      server.handleClient();
     }
     Serial.printf("WiFi disconnected, reconnecting\r\n");
     delay(500);
@@ -207,56 +212,6 @@ void taskWifi( void * parameter ) {
   }
 }
 
-void taskHTTP( void * parameter )
-{
-  String header;
-
-  while (1) {
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-    }
-    delay(100);
-
-    HusarnetClient client = server.available();
-
-    if (client) {
-      Serial.println("New Client.");
-      String currentLine = "";
-      Serial.printf("connected: %d\r\n", client.connected());
-      while (client.connected()) {
-
-        if (client.available()) {
-          char c = client.read();
-          Serial.write(c);
-          header += c;
-          if (c == '\n') {
-            if (currentLine.length() == 0) {
-              client.println("HTTP/1.1 200 OK");
-              client.println("Content-type:text/html");
-              client.println("Connection: close");
-              client.println();
-
-              client.println(html);
-              break;
-            } else {
-              currentLine = "";
-            }
-          } else if (c != '\r') {
-            currentLine += c;
-          }
-        }
-      }
-
-      header = "";
-
-      client.stop();
-      Serial.println("Client disconnected.");
-      Serial.println("");
-    } else {
-      delay(200);
-    }
-  }
-}
 
 void taskStatus( void * parameter )
 {
