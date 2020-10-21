@@ -23,49 +23,15 @@ GND   <-> GND
 
 Remember also to provide appropriate power supply both for ESP32 and MPU9250.
 
-# Configure Arduino IDE
+# Configure Platform IO IDE
 
-To run the project, at first you need to configure your Arduino IDE:
-
-**1. Install Husarnet package for ESP32:**
-
-- open `File -> Preferences`
-- in a field **Additional Board Manager URLs** add this link: `https://github.com/husarnet/arduino-esp32/releases/download/1.0.4-1/package_esp32_index.json`
-- open `Tools -> Board: ... -> Boards Manager ...`
-- Search for `esp32-husarnet` by Husarion
-- Click Install button
-
-**2. Select ESP32 dev board:**
-
-- open `Tools -> Board`
-- select **_ESP32 Dev Module_** under "ESP32 Arduino (Husarnet)" section
-
-**3. Install ArduinoJson library:**
-
-- open `Tools -> Manage Libraries...`
-- search for `ArduinoJson`
-- select version `6.15.2`
-- click **install** button
-
-**4. Install arduinoWebSockets library (Husarnet fork):**
-
-- download https://github.com/husarnet/arduinoWebSockets as a ZIP file (this is Husarnet compatible fork of arduinoWebSockets by Links2004 (Markus) )
-- open `Sketch -> Include Library -> Add .ZIP Library ...`
-choose **arduinoWebSockets-master.zip** file that you just downloaded and click open button
-
-**5. Install SparkFun_MPU-9250-DMP_Arduino_Library :**
-
-- download https://github.com/DominikN/SparkFun_MPU-9250-DMP_Arduino_Library.git as a ZIP file 
-- open `Sketch -> Include Library -> Add .ZIP Library ...`
-choose **SparkFun_MPU-9250-DMP_Arduino_Library-master.zip** file that you just downloaded and click **open** button
-
-
-# Program ESP32 using Arduino IDE
-
-- Open **ESP32-MPU9250-web-view.ino** project
+- Clone the project repo on your disk and open it from Visual Studio Code with platformio installed
+- Open **ESP32-MPU9250-web-view.ino** file
 - modify line 39 with your Husarnet `join code` (get on https://app.husarnet.com)
 - modify lines 18 - 27 to add your Wi-Fi network credentials
 - upload project to your ESP32 board.
+
+If you face any issues in the process, please visit this site: https://docs.husarnet.com/docs/begin-esp32-platformio#get-platformio .
 
 # Open a web page hosted by ESP32
 
