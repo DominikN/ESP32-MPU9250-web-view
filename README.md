@@ -30,9 +30,9 @@ To run the project, at first you need to configure your Arduino IDE:
 **1. Install Husarnet package for ESP32:**
 
 - open `File -> Preferences`
-- in a field **Additional Board Manager URLs** add this link: `https://files.husarion.com/arduino/package_esp32_index.json`
+- in a field **Additional Board Manager URLs** add this link: `https://github.com/husarnet/arduino-esp32/releases/download/1.0.4-1/package_esp32_index.json`
 - open `Tools -> Board: ... -> Boards Manager ...`
-- Search for `esp32-husarnet by Husarion`
+- Search for `esp32-husarnet` by Husarion
 - Click Install button
 
 **2. Select ESP32 dev board:**
@@ -44,7 +44,7 @@ To run the project, at first you need to configure your Arduino IDE:
 
 - open `Tools -> Manage Libraries...`
 - search for `ArduinoJson`
-- select version `5.13.3`
+- select version `6.15.2`
 - click **install** button
 
 **4. Install arduinoWebSockets library (Husarnet fork):**
@@ -55,7 +55,7 @@ choose **arduinoWebSockets-master.zip** file that you just downloaded and click 
 
 **5. Install SparkFun_MPU-9250-DMP_Arduino_Library :**
 
-- download https://github.com/sparkfun/SparkFun_MPU-9250-DMP_Arduino_Library as a ZIP file 
+- download https://github.com/DominikN/SparkFun_MPU-9250-DMP_Arduino_Library.git as a ZIP file 
 - open `Sketch -> Include Library -> Add .ZIP Library ...`
 choose **SparkFun_MPU-9250-DMP_Arduino_Library-master.zip** file that you just downloaded and click **open** button
 
@@ -63,8 +63,8 @@ choose **SparkFun_MPU-9250-DMP_Arduino_Library-master.zip** file that you just d
 # Program ESP32 using Arduino IDE
 
 - Open **ESP32-MPU9250-web-view.ino** project
-- modify line 33 with your Husarnet `join code` (get on https://app.husarnet.com)
-- modify lines 12 - 21 to add your Wi-Fi network credentials
+- modify line 39 with your Husarnet `join code` (get on https://app.husarnet.com)
+- modify lines 18 - 27 to add your Wi-Fi network credentials
 - upload project to your ESP32 board.
 
 # Open a web page hosted by ESP32

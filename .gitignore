@@ -33,3 +33,6 @@
 
 # Network credentials file
 credentials.h
+.pio/
+.vscode/
+.lib/
