@@ -1,14 +1,13 @@
+#include <Adafruit_BNO055.h>
+#include <Adafruit_Sensor.h>
+#include <ArduinoJson.h>
+#include <Husarnet.h>
+#include <SparkFunMPU9250-DMP.h>
+#include <WebServer.h>
+#include <WebSocketsServer.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>
-#include <WebSocketsServer.h>
-#include <Husarnet.h>
-#include <ArduinoJson.h>
-#include <WebServer.h>
-#include <SparkFunMPU9250-DMP.h>
-
 #include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
 
 /* =============== config section start =============== */
 
@@ -29,7 +28,8 @@ const char *passwordTab[NUM_NETWORKS] = {
 };
 
 // Husarnet credentials
-const char *hostName = "box3desp32"; //this will be the name of the 1st ESP32 device at https://app.husarnet.com
+const char *hostName = "box3desp32";  // this will be the name of the 1st ESP32
+                                      // device at https://app.husarnet.com
 
 /* to get your join code go to https://app.husarnet.com
    -> select network
@@ -42,8 +42,7 @@ const char *husarnetJoinCode = "xxxxxxxxxxxxxxxxxxxxxx";
 const char *dashboardURL = "default";
 #endif
 
-#define IMU_SELECT 1 // 1 - BNO055 , 0 - MPU9250
-
+#define IMU_SELECT 0  // 1 - BNO055 , 0 - MPU9250
 
 /* =============== config section end =============== */
 
@@ -79,51 +78,42 @@ WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
 StaticJsonDocument<200> jsonDocTx;
 
 extern const char index_html_start[] asm("_binary_src_index_html_start");
-const String html = String((const char*)index_html_start);
+const String html = String((const char *)index_html_start);
 
 bool wsconnected = false;
 
-void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
-{
-  switch (type)
-  {
-  case WStype_DISCONNECTED:
-  {
-    wsconnected = false;
-    Serial.printf("[%u] Disconnected\r\n", num);
-  }
-  break;
-  case WStype_CONNECTED:
-  {
-    wsconnected = true;
-    Serial.printf("\r\n[%u] Connection from Husarnet \r\n", num);
-  }
-  break;
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t *payload,
+                      size_t length) {
+  switch (type) {
+    case WStype_DISCONNECTED: {
+      wsconnected = false;
+      Serial.printf("[%u] Disconnected\r\n", num);
+    } break;
+    case WStype_CONNECTED: {
+      wsconnected = true;
+      Serial.printf("\r\n[%u] Connection from Husarnet \r\n", num);
+    } break;
 
-  case WStype_TEXT:
-  {
-    Serial.printf("[%u] Text:\r\n", num);
-    for (int i = 0; i < length; i++)
-    {
-      Serial.printf("%c", (char)(*(payload + i)));
-    }
-    Serial.println();
-  }
-  break;
+    case WStype_TEXT: {
+      Serial.printf("[%u] Text:\r\n", num);
+      for (int i = 0; i < length; i++) {
+        Serial.printf("%c", (char)(*(payload + i)));
+      }
+      Serial.println();
+    } break;
 
-  case WStype_BIN:
-  case WStype_ERROR:
-  case WStype_FRAGMENT_TEXT_START:
-  case WStype_FRAGMENT_BIN_START:
-  case WStype_FRAGMENT:
-  case WStype_FRAGMENT_FIN:
-  default:
-    break;
+    case WStype_BIN:
+    case WStype_ERROR:
+    case WStype_FRAGMENT_TEXT_START:
+    case WStype_FRAGMENT_BIN_START:
+    case WStype_FRAGMENT:
+    case WStype_FRAGMENT_FIN:
+    default:
+      break;
   }
 }
 
-void onHttpReqFunc()
-{
+void onHttpReqFunc() {
   server.sendHeader("Connection", "close");
   server.send(200, "text/html", html);
 }
@@ -135,45 +125,40 @@ SemaphoreHandle_t mtx;
 
 const signed char orientationDefault[9] = {0, 1, 0, 0, 0, 1, 1, 0, 0};
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
 
   mtx = xSemaphoreCreateMutex();
   xSemaphoreGive(mtx);
 
-  xTaskCreatePinnedToCore(
-      taskWifi,   /* Task function. */
-      "taskWifi", /* String with name of task. */
-      20000,      /* Stack size in bytes. */
-      NULL,       /* Parameter passed as input of the task */
-      2,          /* Priority of the task. */
-      NULL,       /* Task handle. */
-      0);         /* Core where the task should run */
+  xTaskCreatePinnedToCore(taskWifi,   /* Task function. */
+                          "taskWifi", /* String with name of task. */
+                          20000,      /* Stack size in bytes. */
+                          NULL, /* Parameter passed as input of the task */
+                          2,    /* Priority of the task. */
+                          NULL, /* Task handle. */
+                          0);   /* Core where the task should run */
 
-  xTaskCreatePinnedToCore(
-      taskStatus,   /* Task function. */
-      "taskStatus", /* String with name of task. */
-      20000,        /* Stack size in bytes. */
-      NULL,         /* Parameter passed as input of the task */
-      3,            /* Priority of the task. */
-      NULL,         /* Task handle. */
-      0);           /* Core where the task should run */
+  xTaskCreatePinnedToCore(taskStatus,   /* Task function. */
+                          "taskStatus", /* String with name of task. */
+                          20000,        /* Stack size in bytes. */
+                          NULL, /* Parameter passed as input of the task */
+                          3,    /* Priority of the task. */
+                          NULL, /* Task handle. */
+                          0);   /* Core where the task should run */
 }
 
-void taskWifi(void *parameter)
-{
+void taskWifi(void *parameter) {
   uint8_t stat = WL_DISCONNECTED;
 
   /* Configure Wi-Fi */
-  for (int i = 0; i < NUM_NETWORKS; i++)
-  {
+  for (int i = 0; i < NUM_NETWORKS; i++) {
     wifiMulti.addAP(ssidTab[i], passwordTab[i]);
-    Serial.printf("WiFi %d: SSID: \"%s\" ; PASS: \"%s\"\r\n", i, ssidTab[i], passwordTab[i]);
+    Serial.printf("WiFi %d: SSID: \"%s\" ; PASS: \"%s\"\r\n", i, ssidTab[i],
+                  passwordTab[i]);
   }
 
-  while (stat != WL_CONNECTED)
-  {
+  while (stat != WL_CONNECTED) {
     stat = wifiMulti.run();
     Serial.printf("WiFi status: %d\r\n", (int)stat);
     delay(100);
@@ -196,12 +181,9 @@ void taskWifi(void *parameter)
   server.on("/index.html", HTTP_GET, onHttpReqFunc);
   server.begin();
 
-  while (1)
-  {
-    while (WiFi.status() == WL_CONNECTED)
-    {
-      if (xSemaphoreTake(mtx, 5) == pdTRUE)
-      {
+  while (1) {
+    while (WiFi.status() == WL_CONNECTED) {
+      if (xSemaphoreTake(mtx, 5) == pdTRUE) {
         webSocket.loop();
         server.handleClient();
         xSemaphoreGive(mtx);
@@ -215,8 +197,7 @@ void taskWifi(void *parameter)
   }
 }
 
-void taskStatus(void *parameter)
-{
+void taskStatus(void *parameter) {
   String output;
   unsigned short fifoCnt;
   inv_error_t result;
@@ -224,10 +205,8 @@ void taskStatus(void *parameter)
 #if IMU_SELECT == 0
   pinMode(INTERRUPT_PIN_MPU, INPUT_PULLUP);
 
-  if (mpu.begin() != INV_SUCCESS)
-  {
-    while (1)
-    {
+  if (mpu.begin() != INV_SUCCESS) {
+    while (1) {
       Serial.println("Unable to communicate with MPU-9250");
       Serial.println("Check connections, and try again.");
       Serial.println();
@@ -239,11 +218,11 @@ void taskStatus(void *parameter)
   mpu.setIntLevel(INT_ACTIVE_LOW);
   mpu.setIntLatched(INT_LATCHED);
 
-  mpu.dmpBegin(DMP_FEATURE_6X_LP_QUAT |  // Enable 6-axis quat
-                   DMP_FEATURE_GYRO_CAL, // Use gyro calibration
-               10);                      // Set DMP FIFO rate to 10 Hz
+  mpu.dmpBegin(DMP_FEATURE_6X_LP_QUAT |   // Enable 6-axis quat
+                   DMP_FEATURE_GYRO_CAL,  // Use gyro calibration
+               10);                       // Set DMP FIFO rate to 10 Hz
   mpu.dmpSetOrientation(orientationDefault);
-#endif // IMU_SELECT == 0 // MPU9250
+#endif  // IMU_SELECT == 0 // MPU9250
 
 #if IMU_SELECT == 1
   pinMode(INTERRUPT_PIN_BNO, INPUT_PULLUP);
@@ -255,30 +234,23 @@ void taskStatus(void *parameter)
 
   I2CBNO.begin(I2C_SDA, I2C_SCL, 100000);
 
-  if (!bno.begin())
-  {
-    while (1)
-    {
+  if (!bno.begin()) {
+    while (1) {
       Serial.print("No BNO055 detected");
       delay(1000);
     }
   }
-#endif // IMU_SELECT == 1 // BNO055
+#endif  // IMU_SELECT == 1 // BNO055
 
-  while (1)
-  {
+  while (1) {
 #if IMU_SELECT == 0
-    if (digitalRead(INTERRUPT_PIN_MPU) == LOW)
-    {
-
+    if (digitalRead(INTERRUPT_PIN_MPU) == LOW) {
       fifoCnt = mpu.fifoAvailable();
 
-      if (fifoCnt > 0)
-      {
+      if (fifoCnt > 0) {
         result = mpu.dmpUpdateFifo();
 
-        if (result == INV_SUCCESS)
-        {
+        if (result == INV_SUCCESS) {
           mpu.computeEulerAngles();
           output = "";
 
@@ -287,13 +259,11 @@ void taskStatus(void *parameter)
           float q2 = mpu.calcQuat(mpu.qy);
           float q3 = mpu.calcQuat(mpu.qz);
 
-          imu::Quaternion quat = bno.getQuat();
-
           Serial.printf("Qmpu=[%f,%f,%f,%f]\r\n", q0, q1, q2, q3);
           Serial.printf("---------------------\r\n");
-          //rootTx["roll"] = mpu.roll;
-          //rootTx["pitch"] = mpu.pitch;
-          //rootTx["yaw"] = mpu.yaw;
+          // rootTx["roll"] = mpu.roll;
+          // rootTx["pitch"] = mpu.pitch;
+          // rootTx["yaw"] = mpu.yaw;
 
           jsonDocTx.clear();
           jsonDocTx["q0"] = q0;
@@ -305,34 +275,28 @@ void taskStatus(void *parameter)
           //          Serial.print(F("Sending: "));
           //          Serial.println(output);
 
-          if (wsconnected == true)
-          {
-            if (xSemaphoreTake(mtx, 5) == pdTRUE)
-            {
+          if (wsconnected == true) {
+            if (xSemaphoreTake(mtx, 5) == pdTRUE) {
               webSocket.sendTXT(0, output);
               xSemaphoreGive(mtx);
             }
           }
         }
-      }
-      else
-      {
+      } else {
         Serial.println("false interrupt");
         delay(20);
       }
-    }
-    else
-    {
+    } else {
       delay(20);
     }
-#endif // IMU_SELECT == 0 // MPU9250
+#endif  // IMU_SELECT == 0 // MPU9250
 #if IMU_SELECT == 1
-    if (digitalRead(INTERRUPT_PIN_BNO) == LOW)
-    {
+    if (digitalRead(INTERRUPT_PIN_BNO) == LOW) {
       output = "";
 
       imu::Quaternion quat = bno.getQuat();
-      Serial.printf("Qbno=[%f,%f,%f,%f]\r\n", quat.w(), quat.x(), quat.y(), quat.z());
+      Serial.printf("Qbno=[%f,%f,%f,%f]\r\n", quat.w(), quat.x(), quat.y(),
+                    quat.z());
 
       jsonDocTx.clear();
       jsonDocTx["q0"] = quat.w();
@@ -341,33 +305,26 @@ void taskStatus(void *parameter)
       jsonDocTx["q3"] = quat.z();
       serializeJson(jsonDocTx, output);
 
-      //          Serial.print(F("Sending: "));
-      //          Serial.println(output);
+      // Serial.print(F("Sending: "));
+      // Serial.println(output);
 
-      if (wsconnected == true)
-      {
-        if (xSemaphoreTake(mtx, 5) == pdTRUE)
-        {
+      if (wsconnected == true) {
+        if (xSemaphoreTake(mtx, 5) == pdTRUE) {
           webSocket.sendTXT(0, output);
           xSemaphoreGive(mtx);
         }
       }
       delay(100);
-    }
-    else
-    {
+    } else {
       delay(100);
     }
-
-#endif // IMU_SELECT == 1 // BNO055
+#endif  // IMU_SELECT == 1 // BNO055
   }
 }
 
-void loop()
-{
+void loop() {
   Serial.printf("loop() running on core %d\r\n", xPortGetCoreID());
-  while (1)
-  {
+  while (1) {
     Serial.printf("[RAM: %d]\r\n", esp_get_free_heap_size());
     delay(1000);
   }
