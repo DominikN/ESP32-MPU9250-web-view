@@ -78,9 +78,8 @@ WebSocketsServer webSocket = WebSocketsServer(WEBSOCKET_PORT);
 
 StaticJsonDocument<200> jsonDocTx;
 
-const char *html =
-#include "html.h"
-    ;
+extern const char index_html_start[] asm("_binary_src_index_html_start");
+const String html = String((const char*)index_html_start);
 
 bool wsconnected = false;
 
