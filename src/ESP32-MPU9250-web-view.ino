@@ -42,7 +42,7 @@ const char *husarnetJoinCode = "xxxxxxxxxxxxxxxxxxxxxx";
 const char *dashboardURL = "default";
 #endif
 
-#define IMU_SELECT 0  // 1 - BNO055 , 0 - MPU9250
+#define IMU_SELECT 1  // 1 - BNO055 , 0 - MPU9250
 
 /* =============== config section end =============== */
 
