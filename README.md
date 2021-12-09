@@ -1,5 +1,10 @@
 # ESP32-MPU9250-web-view
 
+[![GitHub stars](https://img.shields.io/github/stars/dominikn/ESP32-MPU9250-web-view?style=social)](https://github.com/DominikN/ESP32-MPU9250-web-view/stargazers/)
+
+[![Build firmware](https://github.com/DominikN/ESP32-MPU9250-web-view/actions/workflows/build.yml/badge.svg)](https://github.com/DominikN/ESP32-MPU9250-web-view/actions/workflows/build.yml)
+[![GitHub license](https://img.shields.io/github/license/dominikn/ESP32-MPU9250-web-view.svg)](https://github.com/dominikn/ESP32-MPU9250-web-view/blob/master/LICENSE)
+
 **_Visualizing MPU9250 3D orientation data on the web page hosted by ESP32. Using websockets and JSON to send orientation data (quaternion or Euler angles) to the web browser. Visualisation is done using Three.js library. Written using Arduino framework._**
 
 MPU9250 is one of the most popular IMU (Inertial Measurement Unit) available on the market. It combines not only 3D accelerometer, 3D gyro and 3D compass but also DMP (Digital Motion Processor). Thanks to DMP we can read orientation data in the form of Euler angles or quaternions directly from the chip.
